@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lección 1 · Perceptrón</title>
+<style>
+  :root {
+    --fondo: #f7f5f0;
+    --tarjeta: #ffffff;
+    --texto: #1d1d1f;
+    --texto-suave: #6b6b70;
+    --borde: #e3e0d8;
+    --acento: #3b5bdb;
+    --clase-a: #e8590c;
+    --clase-b: #1c7ed6;
+    --zona-a: #fde7d9;
+    --zona-b: #dcecfb;
+    --eje: rgba(0,0,0,.12);
+    --error: #c92a2a;
+    --codigo-fondo: #f1efe9;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --fondo: #141416;
+      --tarjeta: #1c1c1f;
+      --texto: #ececef;
+      --texto-suave: #9a9aa2;
+      --borde: #2e2e33;
+      --acento: #7c95ff;
+      --clase-a: #ff8a4c;
+      --clase-b: #4dabf7;
+      --zona-a: #3a2518;
+      --zona-b: #16293d;
+      --eje: rgba(255,255,255,.12);
+      --error: #ff6b6b;
+      --codigo-fondo: #232327;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--fondo);
+    color: var(--texto);
+    font: 17px/1.65 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  main { max-width: 760px; margin: 0 auto; padding: 40px 16px 80px; }
+  .kicker { color: var(--acento); font-weight: 600; letter-spacing: .04em; text-transform: uppercase; font-size: 13px; }
+  h1 { font-size: clamp(28px, 5vw, 40px); line-height: 1.15; margin: 6px 0 12px; }
+  h2 { margin-top: 48px; font-size: 24px; }
+  p.lead { font-size: 19px; color: var(--texto-suave); }
+  code { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: .9em; background: var(--codigo-fondo); padding: 1px 5px; border-radius: 4px; }
+  pre { background: var(--codigo-fondo); border: 1px solid var(--borde); border-radius: 8px; padding: 14px 16px; overflow-x: auto; font-size: 14px; line-height: 1.5; }
+  pre code { background: none; padding: 0; }
+  .formula { text-align: center; font-family: ui-monospace, Consolas, monospace; font-size: 18px; padding: 14px; background: var(--tarjeta); border: 1px solid var(--borde); border-radius: 8px; overflow-x: auto; }
+  .tarjeta { background: var(--tarjeta); border: 1px solid var(--borde); border-radius: 12px; padding: 16px; }
+  .demo { display: grid; gap: 16px; }
+  canvas { width: 100%; max-width: 520px; aspect-ratio: 1; display: block; margin: 0 auto; border-radius: 8px; cursor: crosshair; touch-action: manipulation; }
+  .controles { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+  button { font: inherit; font-size: 15px; padding: 8px 14px; border-radius: 8px; border: 1px solid var(--borde); background: var(--fondo); color: var(--texto); cursor: pointer; }
+  button:hover { border-color: var(--acento); }
+  button.primario { background: var(--acento); color: #fff; border-color: var(--acento); }
+  .sliders { display: grid; gap: 8px; font-size: 15px; }
+  .sliders label { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .sliders input[type=range] { flex: 1; min-width: 140px; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 8px; text-align: center; }
+  .stats div { background: var(--fondo); border-radius: 8px; padding: 8px 4px; }
+  .stats b { display: block; font-size: 20px; font-variant-numeric: tabular-nums; }
+  .stats span { font-size: 12px; color: var(--texto-suave); text-transform: uppercase; letter-spacing: .05em; }
+  #estado { text-align: center; color: var(--texto-suave); min-height: 1.6em; margin: 0; }
+  .leyenda { font-size: 14px; color: var(--texto-suave); text-align: center; }
+  .punto { display: inline-block; width: 10px; height: 10px; border-radius: 50%; vertical-align: middle; }
+  ol.ejercicios li { margin-bottom: 10px; }
+  .nota { border-left: 3px solid var(--acento); padding: 4px 14px; color: var(--texto-suave); }
+</style>
+</head>
+<body>
+<main>
+
+  <div class="kicker">JavaScript para IA · Lección 1</div>
+  <h1>Una neurona desde cero</h1>
+  <p class="lead">Construimos un perceptrón en JavaScript puro —sin librerías— y lo vemos aprender a separar dos grupos de puntos en un canvas.</p>
+
+  <h2>1. La idea</h2>
+  <p>Una neurona artificial es una función muy simple: recibe números, los multiplica por unos <strong>pesos</strong>, suma un <strong>sesgo</strong> y decide <code>+1</code> o <code>-1</code>.</p>
+  <div class="formula">z = w₁·x + w₂·y + b &nbsp;&nbsp;→&nbsp;&nbsp; salida = z ≥ 0 ? +1 : −1</div>
+  <p>Con dos entradas (<code>x</code>, <code>y</code>), la ecuación <code>w₁·x + w₂·y + b = 0</code> es una <strong>recta</strong>. Todo lo que queda a un lado es clase A; al otro, clase B. Aprender = mover esa recta hasta que separe bien los puntos.</p>
+
+  <h2>2. Cómo aprende</h2>
+  <p>La regla del perceptrón (Rosenblatt, 1958) es casi de sentido común. Por cada ejemplo:</p>
+  <ol>
+    <li>Predice.</li>
+    <li>Calcula <code>error = objetivo − predicción</code> (vale −2, 0 o 2).</li>
+    <li>Si falló, empuja cada peso: <code>w += tasa · error · entrada</code>, y el sesgo: <code>b += tasa · error</code>.</li>
+  </ol>
+  <p>Una pasada completa por todos los datos se llama <strong>época</strong>. Si los datos se pueden separar con una recta, está demostrado que el perceptrón termina encontrándola.</p>
+
+  <h2>3. El código</h2>
+  <p>Todo el "cerebro" cabe en una clase (<code>perceptron.js</code>):</p>
+<pre><code>class Perceptron {
+  constructor(numEntradas, tasaAprendizaje = 0.1) {
+    this.pesos = Array.from({ length: numEntradas }, () =&gt; Math.random() * 2 - 1);
+    this.sesgo = Math.random() * 2 - 1;
+    this.tasa = tasaAprendizaje;
+  }
+
+  sumaPonderada(entradas) {
+    let z = this.sesgo;
+    for (let i = 0; i &lt; this.pesos.length; i++) z += this.pesos[i] * entradas[i];
+    return z;
+  }
+
+  activacion(z) { return z &gt;= 0 ? 1 : -1; }
+
+  predecir(entradas) { return this.activacion(this.sumaPonderada(entradas)); }
+
+  entrenar(entradas, objetivo) {
+    const error = objetivo - this.predecir(entradas);
+    if (error !== 0) {
+      for (let i = 0; i &lt; this.pesos.length; i++) {
+        this.pesos[i] += this.tasa * error * entradas[i];
+      }
+      this.sesgo += this.tasa * error;
+    }
+    return error;
+  }
+}</code></pre>
+  <p>Uso mínimo:</p>
+<pre><code>const n = new Perceptron(2);
+n.entrenar([0.5, 0.8], 1);    // "este punto es clase A"
+n.entrenar([0.3, -0.6], -1);  // "este es clase B"
+n.predecir([0.4, 0.9]);       // → 1 o -1</code></pre>
+
+  <h2>4. Pruébalo</h2>
+  <p>Hay una recta secreta (punteada) que decide el color de cada punto. La neurona no la conoce: solo ve puntos y etiquetas. Su recta aprendida es la línea gruesa; el fondo muestra qué predice en cada zona. Los puntos con anillo rojo están mal clasificados.</p>
+
+  <section class="tarjeta demo" aria-label="Demo interactiva">
+    <canvas id="lienzo" aria-label="Plano con puntos y frontera de decisión"></canvas>
+    <p class="leyenda">
+      <span class="punto" style="background:var(--clase-a)"></span> clase A (+1) · clic &nbsp;&nbsp;
+      <span class="punto" style="background:var(--clase-b)"></span> clase B (−1) · clic derecho o Shift+clic
+    </p>
+    <div class="controles">
+      <button id="btn-auto" class="primario">▶ Entrenar</button>
+      <button id="btn-paso">Un paso</button>
+      <button id="btn-reiniciar">Reiniciar neurona</button>
+      <button id="btn-puntos">Nuevos puntos</button>
+      <button id="btn-limpiar">Vaciar</button>
+    </div>
+    <p id="estado"></p>
+    <div class="stats">
+      <div><b id="epoca">0</b><span>época</span></div>
+      <div><b id="precision">—</b><span>precisión</span></div>
+      <div><b id="w1">0</b><span>w₁</span></div>
+      <div><b id="w2">0</b><span>w₂</span></div>
+      <div><b id="b">0</b><span>sesgo</span></div>
+    </div>
+    <div class="sliders">
+      <label>Tasa de aprendizaje <input id="tasa" type="range" min="-3" max="0" step="0.05" value="-1.3"> <code id="tasa-valor">0.05</code></label>
+      <label>Velocidad (pasos/frame) <input id="velocidad" type="range" min="1" max="40" step="1" value="2"></label>
+      <label><input id="ver-secreta" type="checkbox" checked> Mostrar recta secreta</label>
+    </div>
+  </section>
+
+  <h2>5. Qué observar</h2>
+  <ul>
+    <li>Pulsa <em>Un paso</em> varias veces: la recta solo se mueve cuando el punto resaltado está mal clasificado.</li>
+    <li>La recta aprendida casi nunca coincide exactamente con la secreta. Basta con que separe los datos que <em>ha visto</em>. Esa diferencia es la semilla del concepto de <strong>generalización</strong>.</li>
+    <li>Sube la tasa a 1: converge, pero a saltos. Bájala a 0.001: suave pero lento.</li>
+  </ul>
+
+  <h2>6. Ejercicios</h2>
+  <ol class="ejercicios">
+    <li><strong>Rompe la neurona.</strong> Pulsa <em>Vaciar</em> y dibuja un grupo A en el centro rodeado de puntos B. Entrena. ¿Por qué nunca converge? (Pista: busca "problema XOR" y "separabilidad lineal".)</li>
+    <li><strong>Sin sesgo.</strong> En <code>perceptron.js</code> comenta la línea que actualiza <code>this.sesgo</code> y fíjalo a 0. ¿Qué restricción aparece en la recta?</li>
+    <li><strong>Otra activación.</strong> Crea un método <code>sigmoide(z)</code> que devuelva <code>1 / (1 + Math.exp(-z))</code> y muestra en consola la "confianza" de cada predicción.</li>
+    <li><strong>Tres entradas.</strong> Instancia <code>new Perceptron(3)</code> y entrénalo para la puerta lógica AND con entradas <code>[a, b, 1]</code>. Luego prueba OR. Luego XOR.</li>
+    <li><strong>Mide.</strong> Cuenta cuántas épocas tarda en converger con 20, 80 y 300 puntos. Haz una tabla.</li>
+  </ol>
+
+  <p class="nota">Próxima lección: el perceptrón no puede resolver XOR. Para eso necesitamos varias neuronas en capas, una activación suave y una nueva forma de aprender: el descenso del gradiente.</p>
+
+</main>
+<script src="perceptron.js"></script>
+<script src="demo.js"></script>
+</body>
+</html>
