@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lección 2 · Red multicapa</title>
+<style>
+  :root {
+    --fondo: #f7f5f0;
+    --tarjeta: #ffffff;
+    --texto: #1d1d1f;
+    --texto-suave: #6b6b70;
+    --borde: #e3e0d8;
+    --acento: #3b5bdb;
+    --clase-a: #e8590c;
+    --clase-b: #1c7ed6;
+    --zona-a: #fbc9a8;
+    --zona-b: #cfe3f8;
+    --oculta: rgba(29,29,31,.45);
+    --eje: rgba(0,0,0,.15);
+    --error: #c92a2a;
+    --codigo-fondo: #f1efe9;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --fondo: #141416;
+      --tarjeta: #1c1c1f;
+      --texto: #ececef;
+      --texto-suave: #9a9aa2;
+      --borde: #2e2e33;
+      --acento: #7c95ff;
+      --clase-a: #ff8a4c;
+      --clase-b: #4dabf7;
+      --zona-a: #5a3017;
+      --zona-b: #17324d;
+      --oculta: rgba(236,236,239,.45);
+      --eje: rgba(255,255,255,.15);
+      --error: #ff6b6b;
+      --codigo-fondo: #232327;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--fondo);
+    color: var(--texto);
+    font: 17px/1.65 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  main { max-width: 760px; margin: 0 auto; padding: 40px 16px 80px; }
+  .kicker { color: var(--acento); font-weight: 600; letter-spacing: .04em; text-transform: uppercase; font-size: 13px; }
+  h1 { font-size: clamp(28px, 5vw, 40px); line-height: 1.15; margin: 6px 0 12px; }
+  h2 { margin-top: 48px; font-size: 24px; }
+  p.lead { font-size: 19px; color: var(--texto-suave); }
+  code { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: .9em; background: var(--codigo-fondo); padding: 1px 5px; border-radius: 4px; }
+  pre { background: var(--codigo-fondo); border: 1px solid var(--borde); border-radius: 8px; padding: 14px 16px; overflow-x: auto; font-size: 14px; line-height: 1.5; }
+  pre code { background: none; padding: 0; }
+  .formula { text-align: center; font-family: ui-monospace, Consolas, monospace; font-size: 17px; padding: 14px; background: var(--tarjeta); border: 1px solid var(--borde); border-radius: 8px; overflow-x: auto; }
+  .tarjeta { background: var(--tarjeta); border: 1px solid var(--borde); border-radius: 12px; padding: 16px; }
+  table { border-collapse: collapse; margin: 0 auto; font-variant-numeric: tabular-nums; }
+  th, td { border: 1px solid var(--borde); padding: 6px 16px; text-align: center; }
+  th { background: var(--codigo-fondo); }
+  .diagrama { display: block; width: 100%; max-width: 520px; height: auto; margin: 0 auto; }
+  .diagrama .nodo { fill: var(--tarjeta); stroke: var(--texto); stroke-width: 2; }
+  .diagrama .nodo.oculta { stroke: var(--acento); }
+  .diagrama .conexion { stroke: var(--texto-suave); stroke-width: 1.2; }
+  .diagrama text { fill: var(--texto); font: 14px system-ui, sans-serif; text-anchor: middle; dominant-baseline: middle; }
+  .diagrama .rotulo { fill: var(--texto-suave); font-size: 13px; }
+  .demo { display: grid; gap: 16px; }
+  #lienzo { width: 100%; max-width: 520px; aspect-ratio: 1; display: block; margin: 0 auto; border-radius: 8px; cursor: crosshair; touch-action: manipulation; }
+  #grafica { width: 100%; height: 90px; display: block; }
+  .grafica-titulo { font-size: 12px; color: var(--texto-suave); text-transform: uppercase; letter-spacing: .05em; margin: 0 0 4px; }
+  .controles { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+  button, select { font: inherit; font-size: 15px; padding: 8px 14px; border-radius: 8px; border: 1px solid var(--borde); background: var(--fondo); color: var(--texto); cursor: pointer; }
+  button:hover, select:hover { border-color: var(--acento); }
+  button.primario { background: var(--acento); color: #fff; border-color: var(--acento); }
+  .sliders { display: grid; gap: 8px; font-size: 15px; }
+  .sliders label { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .sliders input[type=range] { flex: 1; min-width: 140px; }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; text-align: center; }
+  .stats div { background: var(--fondo); border-radius: 8px; padding: 8px 4px; }
+  .stats b { display: block; font-size: 20px; font-variant-numeric: tabular-nums; }
+  .stats span { font-size: 12px; color: var(--texto-suave); text-transform: uppercase; letter-spacing: .05em; }
+  #estado { text-align: center; color: var(--texto-suave); min-height: 1.6em; margin: 0; }
+  .leyenda { font-size: 14px; color: var(--texto-suave); text-align: center; margin: 0; }
+  .punto { display: inline-block; width: 10px; height: 10px; border-radius: 50%; vertical-align: middle; }
+  ol.ejercicios li { margin-bottom: 10px; }
+  .nota { border-left: 3px solid var(--acento); padding: 4px 14px; color: var(--texto-suave); }
+</style>
+</head>
+<body>
+<main>
+
+  <div class="kicker">JavaScript para IA · Lección 2</div>
+  <h1>Varias neuronas en capas: una red que aprende XOR</h1>
+  <p class="lead">Juntamos varios perceptrones, les damos una activación suave y los entrenamos con descenso del gradiente y retropropagación. Todo en JavaScript puro.</p>
+
+  <h2>1. El muro de la lección 1</h2>
+  <p>El perceptrón solo sabe dibujar <strong>una recta</strong>. La puerta lógica XOR («uno u otro, pero no los dos») no se puede separar con una sola recta:</p>
+  <table>
+    <tr><th>a</th><th>b</th><th>a XOR b</th></tr>
+    <tr><td>0</td><td>0</td><td>0</td></tr>
+    <tr><td>0</td><td>1</td><td>1</td></tr>
+    <tr><td>1</td><td>0</td><td>1</td></tr>
+    <tr><td>1</td><td>1</td><td>0</td></tr>
+  </table>
+  <p>Coloca esos cuatro puntos en un plano: los «1» están en una diagonal y los «0» en la otra. Ninguna recta deja los 1 a un lado y los 0 al otro. Pero <strong>dos</strong> rectas sí pueden encerrar una franja.</p>
+
+  <h2>2. La idea: capas</h2>
+  <p>Ponemos varias neuronas en una <strong>capa oculta</strong>. Cada una dibuja su propia recta. Una neurona de <strong>salida</strong> combina sus respuestas. Varias rectas combinadas pueden formar franjas, esquinas y curvas.</p>
+  <svg class="diagrama" viewBox="0 0 520 260" role="img" aria-label="Red con 2 entradas, 3 neuronas ocultas y 1 salida">
+    <g class="conexion">
+      <line x1="90" y1="90" x2="260" y2="50"/><line x1="90" y1="90" x2="260" y2="130"/><line x1="90" y1="90" x2="260" y2="210"/>
+      <line x1="90" y1="170" x2="260" y2="50"/><line x1="90" y1="170" x2="260" y2="130"/><line x1="90" y1="170" x2="260" y2="210"/>
+      <line x1="260" y1="50" x2="430" y2="130"/><line x1="260" y1="130" x2="430" y2="130"/><line x1="260" y1="210" x2="430" y2="130"/>
+    </g>
+    <circle class="nodo" cx="90" cy="90" r="24"/><text x="90" y="90">x</text>
+    <circle class="nodo" cx="90" cy="170" r="24"/><text x="90" y="170">y</text>
+    <circle class="nodo oculta" cx="260" cy="50" r="24"/><text x="260" y="50">h₁</text>
+    <circle class="nodo oculta" cx="260" cy="130" r="24"/><text x="260" y="130">h₂</text>
+    <circle class="nodo oculta" cx="260" cy="210" r="24"/><text x="260" y="210">h₃</text>
+    <circle class="nodo" cx="430" cy="130" r="24"/><text x="430" y="130">p</text>
+    <text class="rotulo" x="90" y="245">entradas</text>
+    <text class="rotulo" x="260" y="250">capa oculta (W1, b1)</text>
+    <text class="rotulo" x="430" y="180">salida (W2, b2)</text>
+  </svg>
+  <div class="formula">hⱼ = tanh(W1ⱼ · [x, y] + b1ⱼ) &nbsp;&nbsp;→&nbsp;&nbsp; p = sigmoide(W2 · h + b2)</div>
+  <p>La salida <code>p</code> es un número entre 0 y 1: la <strong>probabilidad</strong> de que el punto sea de clase A. Por eso ahora las etiquetas son <code>1</code> y <code>0</code>, no <code>+1</code> y <code>−1</code>.</p>
+
+  <h2>3. Por qué el escalón ya no sirve</h2>
+  <p>La regla del perceptrón no sabe a qué neurona oculta culpar de un error. Para repartir la culpa necesitamos saber <em>cuánto cambia la salida si movemos un poco cada peso</em>: la <strong>derivada</strong>. El escalón es plano (derivada 0) excepto en el salto, así que no da esa información. Usamos curvas suaves:</p>
+  <ul>
+    <li><strong>tanh</strong> en la capa oculta: va de −1 a 1. Su derivada es <code>1 − h²</code>.</li>
+    <li><strong>sigmoide</strong> en la salida: va de 0 a 1, se lee como probabilidad.</li>
+  </ul>
+
+  <h2>4. Medir el error: la pérdida</h2>
+  <p>En lugar de «acierto o fallo», medimos <em>cuánto</em> se equivoca con la <strong>pérdida logarítmica</strong> (entropía cruzada):</p>
+  <div class="formula">L = −[ t·log(p) + (1 − t)·log(1 − p) ]</div>
+  <p>Si el objetivo es <code>t = 1</code> y la red dice <code>p = 0.99</code>, la pérdida es casi 0. Si dice <code>p = 0.01</code>, la pérdida es enorme. Aprender = <strong>hacer que la pérdida baje</strong>.</p>
+
+  <h2>5. Descenso del gradiente</h2>
+  <p>Imagina que estás en una montaña con niebla y quieres bajar al valle. No ves el valle, pero sí notas hacia dónde baja el suelo bajo tus pies. Das un paso en esa dirección y repites. Eso es el descenso del gradiente:</p>
+  <div class="formula">w ← w − tasa · ∂L/∂w</div>
+  <p>El <strong>gradiente</strong> <code>∂L/∂w</code> dice cuánto sube la pérdida si aumentamos <code>w</code>. Restarlo nos mueve cuesta abajo. La tasa de aprendizaje es el tamaño del paso, igual que en la lección 1.</p>
+
+  <h2>6. Retropropagación: repartir la culpa</h2>
+  <p>Calculamos los gradientes de atrás hacia delante con la <strong>regla de la cadena</strong>:</p>
+  <ol>
+    <li><strong>Salida.</strong> Con sigmoide y pérdida logarítmica, las cuentas se simplifican de forma muy elegante: <code>δsalida = p − t</code>.</li>
+    <li><strong>Capa oculta.</strong> La culpa de cada neurona oculta es la culpa de la salida, por el peso que las une, por la pendiente de tanh: <code>δⱼ = δsalida · W2ⱼ · (1 − hⱼ²)</code>.</li>
+    <li><strong>Pesos.</strong> El gradiente de cada peso es <em>δ de la neurona a la que llega × valor que transporta</em>. Para W2: <code>δsalida · hⱼ</code>. Para W1: <code>δⱼ · entradaᵢ</code>.</li>
+  </ol>
+  <p class="nota">Compara con la lección 1: allí era <code>w += tasa · error · entrada</code>. Aquí es <code>w −= tasa · δ · entrada</code>. Es la misma idea, ahora con un error continuo y repartido entre capas.</p>
+
+  <h2>7. El código</h2>
+  <p>Todo el cerebro está en <code>red.js</code>. Primero unas utilidades:</p>
+<pre><code>const aleatorio = () =&gt; Math.random() * 2 - 1;
+const sigmoide = (z) =&gt; 1 / (1 + Math.exp(-z));
+
+function productoPunto(a, b) {
+  let suma = 0;
+  for (let i = 0; i &lt; a.length; i++) suma += a[i] * b[i];
+  return suma;
+}
+
+function perdida(p, t) {
+  const e = 1e-12;
+  return -(t * Math.log(p + e) + (1 - t) * Math.log(1 - p + e));
+}</code></pre>
+  <p>La red: pesos, propagación hacia delante y entrenamiento.</p>
+<pre><code>class RedNeuronal {
+  constructor(numEntradas, numOcultas, tasa = 0.1) {
+    this.tasa = tasa;
+    this.W1 = Array.from({ length: numOcultas }, () =&gt;
+      Array.from({ length: numEntradas }, aleatorio));
+    this.b1 = Array.from({ length: numOcultas }, aleatorio);
+    this.W2 = Array.from({ length: numOcultas }, aleatorio);
+    this.b2 = aleatorio();
+  }
+
+  propagar(entradas) {
+    const ocultas = this.W1.map((pesos, j) =&gt;
+      Math.tanh(productoPunto(pesos, entradas) + this.b1[j]));
+    const salida = sigmoide(productoPunto(this.W2, ocultas) + this.b2);
+    return { ocultas, salida };
+  }
+
+  entrenar(entradas, objetivo) {
+    const { ocultas, salida } = this.propagar(entradas);
+    const deltaSalida = salida - objetivo;
+    const deltaOcultas = ocultas.map((h, j) =&gt;
+      deltaSalida * this.W2[j] * (1 - h * h));
+
+    for (let j = 0; j &lt; this.W2.length; j++) {
+      this.W2[j] -= this.tasa * deltaSalida * ocultas[j];
+    }
+    this.b2 -= this.tasa * deltaSalida;
+
+    for (let j = 0; j &lt; this.W1.length; j++) {
+      for (let i = 0; i &lt; entradas.length; i++) {
+        this.W1[j][i] -= this.tasa * deltaOcultas[j] * entradas[i];
+      }
+      this.b1[j] -= this.tasa * deltaOcultas[j];
+    }
+    return perdida(salida, objetivo);
+  }
+}</code></pre>
+  <p>Resolver XOR, en la consola del navegador o en Node:</p>
+<pre><code>const xor = [[0, 0, 0], [0, 1, 1], [1, 0, 1], [1, 1, 0]];
+const red = new RedNeuronal(2, 3, 0.5);
+for (let e = 0; e &lt; 3000; e++) {
+  for (const [a, b, t] of xor) red.entrenar([a, b], t);
+}
+xor.forEach(([a, b]) =&gt; console.log(a, b, red.predecir([a, b]).toFixed(3)));
+// 0 0 0.000 · 0 1 1.000 · 1 0 1.000 · 1 1 0.001</code></pre>
+
+  <h2>8. Pruébalo</h2>
+  <p>El fondo muestra la probabilidad que da la red en cada zona: naranja intenso significa «seguro que es A», azul significa «seguro que es B», y los tonos mezclados son zonas de duda. Las líneas punteadas son las rectas de cada neurona oculta. Los puntos con anillo rojo están mal clasificados.</p>
+
+  <section class="tarjeta demo" aria-label="Demo interactiva">
+    <canvas id="lienzo" aria-label="Plano con puntos y mapa de probabilidad de la red"></canvas>
+    <p class="leyenda">
+      <span class="punto" style="background:var(--clase-a)"></span> clase A (1) · clic &nbsp;&nbsp;
+      <span class="punto" style="background:var(--clase-b)"></span> clase B (0) · clic derecho o Shift+clic
+    </p>
+    <div class="controles">
+      <select id="datos" aria-label="Conjunto de datos">
+        <option value="xor">XOR</option>
+        <option value="circulo">Círculo</option>
+        <option value="espiral">Espiral</option>
+      </select>
+      <button id="btn-auto" class="primario">▶ Entrenar</button>
+      <button id="btn-epoca">Una época</button>
+      <button id="btn-reiniciar">Reiniciar red</button>
+      <button id="btn-limpiar">Vaciar</button>
+    </div>
+    <p id="estado"></p>
+    <div class="stats">
+      <div><b id="epoca">0</b><span>época</span></div>
+      <div><b id="perdida">—</b><span>pérdida</span></div>
+      <div><b id="precision">—</b><span>precisión</span></div>
+    </div>
+    <div>
+      <p class="grafica-titulo">Pérdida por época</p>
+      <canvas id="grafica" aria-label="Gráfica de la pérdida a lo largo de las épocas"></canvas>
+    </div>
+    <div class="sliders">
+      <label>Neuronas ocultas <input id="ocultas" type="range" min="1" max="16" step="1" value="4"> <code id="ocultas-valor">4</code></label>
+      <label>Tasa de aprendizaje <input id="tasa" type="range" min="-3" max="0" step="0.05" value="-1"> <code id="tasa-valor">0.10</code></label>
+      <label>Velocidad (épocas/frame) <input id="velocidad" type="range" min="1" max="20" step="1" value="1"></label>
+      <label><input id="ver-ocultas" type="checkbox" checked> Mostrar rectas de las neuronas ocultas</label>
+    </div>
+  </section>
+
+  <h2>9. Qué observar</h2>
+  <ul>
+    <li><strong>XOR (cuadrantes):</strong> con 1 neurona oculta es un perceptrón y no puede. Con 2 se queda alrededor del 85 %. Con 4, en nuestras pruebas llegó al 100 % las 10 veces. Fíjate en cómo las rectas punteadas se colocan sobre los ejes.</li>
+    <li><strong>A veces se atasca.</strong> En la tabla XOR de 4 puntos (sección 7), una red de 2 neuronas ocultas lo resolvió solo 24 de cada 50 veces. Las demás cayó en un <strong>mínimo local</strong>: un valle que no es el más profundo. La solución: <em>Reiniciar red</em> (pesos iniciales nuevos) o añadir neuronas.</li>
+    <li><strong>Círculo:</strong> con 1 o 2 neuronas es imposible. Con 3 o 4, las rectas forman un polígono que se aproxima (≈ 93 %). Con 8, casi perfecto.</li>
+    <li><strong>La curva de pérdida</strong> suele tener mesetas y luego caídas bruscas: la red pasa un rato «perdida» y de repente encuentra el camino.</li>
+    <li><strong>Espiral:</strong> con 16 neuronas y tasa 0.1 se queda en ≈ 65 %. Baja la tasa a ≈ 0.03 y sube la velocidad: en nuestras pruebas llegó al 100 % en unas 2000 épocas. La tasa importa.</li>
+  </ul>
+
+  <h2>10. Ejercicios</h2>
+  <ol class="ejercicios">
+    <li><strong>Neuronas mínimas.</strong> ¿Cuál es el menor número de neuronas ocultas con el que la red resuelve XOR? ¿Y el círculo? Explica por qué mirando las rectas punteadas.</li>
+    <li><strong>Mide la suerte.</strong> En Node, entrena 50 redes de 2 neuronas ocultas con XOR y cuenta cuántas lo resuelven. Repite con 3 y con 4. Haz una tabla.</li>
+    <li><strong>Vuelve al escalón.</strong> Cambia <code>Math.tanh</code> por una función escalón en <code>propagar</code> y deja la derivada <code>1 − h²</code>. ¿Qué pasa? ¿Por qué?</li>
+    <li><strong>Sigmoide en la capa oculta.</strong> Sustituye tanh por <code>sigmoide</code>. Recuerda cambiar también su derivada: <code>h · (1 − h)</code>. ¿Aprende más rápido o más lento?</li>
+    <li><strong>Tasa extrema.</strong> Pon la tasa a 1 con el círculo. Observa la curva de pérdida. ¿Qué significa que suba y baje en lugar de descender?</li>
+    <li><strong>Verifica el gradiente.</strong> Elige un peso, súmale 0.0001, calcula la pérdida, réstale 0.0001, calcula otra vez, y divide la diferencia entre 0.0002. Compara con <code>deltaOcultas[j] · entradas[i]</code>. Deben coincidir casi exactamente.</li>
+  </ol>
+
+</main>
+<script src="red.js"></script>
+<script src="demo.js"></script>
+</body>
+</html>
